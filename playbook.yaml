@@ -31,7 +31,8 @@
         mode: 0777
         path: /opt/mastodon/public/system
 
-    - copy:
+    - become: yes
+      copy:
         src: files/{{ item }}
         dest: /opt/mastodon/{{ item }}
       loop:
