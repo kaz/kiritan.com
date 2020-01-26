@@ -1,0 +1,48 @@
+#!/usr/bin/env ansible-playbook -i hosts.sh --diff
+
+- hosts: mastodon
+  tasks:
+
+    - become: yes
+      pacman:
+        update_cache: yes
+        name:
+          - nano
+          - docker
+          - docker-compose
+
+    - become: yes
+      systemd:
+        state: started
+        enabled: yes
+        name: docker
+
+    - become: yes
+      user:
+        groups:
+          - docker
+        append: yes
+        name: kaz
+
+    - become: yes
+      file:
+        state: directory
+        recurse: yes
+        mode: 0777
+        path: /opt/mastodon/public/system
+
+    - copy:
+        src: files/{{ item }}
+        dest: /opt/mastodon/{{ item }}
+      loop:
+        - .env.production
+        - docker-compose.yaml
+        - nginx.conf
+
+    - shell: "{{ item }}"
+      args:
+        chdir: /opt/mastodon
+      loop:
+        - docker-compose run --rm web rails db:migrate
+        - docker-compose run --rm web rails assets:precompile
+        - docker-compose up -d
