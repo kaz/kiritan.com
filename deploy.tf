@@ -28,10 +28,6 @@ data "google_compute_network" "network" {
   name = "default"
 }
 
-resource "google_compute_address" "ip" {
-  name = local.name
-}
-
 resource "google_compute_firewall" "firewall" {
   name    = local.name
   network = data.google_compute_network.network.name
@@ -61,9 +57,14 @@ resource "google_compute_firewall" "firewall" {
   }
 }
 
+resource "google_compute_address" "ip" {
+  name   = local.name
+  region = local.region
+}
+
 resource "google_compute_instance" "instance" {
   name         = local.name
-  machine_type = "n1-standard-1"
+  machine_type = "g1-small"
   zone         = "${local.region}-b"
 
   tags = [local.name]
@@ -77,13 +78,14 @@ resource "google_compute_instance" "instance" {
 
   boot_disk {
     initialize_params {
-      size  = 32
+      size  = 16
       image = "projects/arch-linux-gce/global/images/family/arch"
     }
   }
 
   scheduling {
-    preemptible = false
+    preemptible       = true
+    automatic_restart = false
   }
 }
 

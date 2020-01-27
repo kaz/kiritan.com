@@ -6,6 +6,7 @@
         update_cache: yes
         name:
           - nano
+          - rsync
           - docker
           - docker-compose
 
