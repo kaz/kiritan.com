@@ -1,7 +1,7 @@
 locals {
-  name    = "mastodon"
-  region  = "asia-northeast1"
   project = "kouzoh-p-kaz"
+  region  = "asia-northeast1"
+  name    = "mastodon"
 }
 
 terraform {
@@ -15,6 +15,10 @@ provider "google" {
   project = local.project
   region  = local.region
 }
+
+#############################
+##### mastodon instance #####
+#############################
 
 output "ip_addr" {
   value = google_compute_address.ip.address
@@ -81,4 +85,70 @@ resource "google_compute_instance" "instance" {
   scheduling {
     preemptible = false
   }
+}
+
+#######################
+##### re-launcher #####
+#######################
+
+resource "google_pubsub_topic" "topic" {
+  name = local.name
+}
+
+resource "google_cloud_scheduler_job" "job" {
+  name     = local.name
+  schedule = "* * * * *"
+
+  pubsub_target {
+    topic_name = google_pubsub_topic.topic.id
+    data       = base64encode(" ")
+  }
+}
+
+resource "google_storage_bucket" "bucket" {
+  name     = "${local.project}-${local.name}"
+  location = local.region
+}
+
+resource "google_storage_bucket_object" "archive" {
+  name   = "${filemd5("archive.zip")}.zip"
+  bucket = google_storage_bucket.bucket.name
+  source = "archive.zip"
+}
+
+resource "google_cloudfunctions_function" "function" {
+  name = local.name
+
+  runtime               = "nodejs10"
+  available_memory_mb   = 128
+  entry_point           = "run"
+  service_account_email = google_service_account.sa.email
+
+  source_archive_bucket = google_storage_bucket.bucket.name
+  source_archive_object = google_storage_bucket_object.archive.name
+
+  environment_variables = {
+    ZONE = google_compute_instance.instance.zone
+    VM   = google_compute_instance.instance.name
+  }
+
+  event_trigger {
+    event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
+    resource   = google_pubsub_topic.topic.id
+  }
+}
+
+resource "google_service_account" "sa" {
+  account_id   = local.name
+  display_name = "Mastodon service account"
+}
+
+resource "google_compute_instance_iam_binding" "binding" {
+  zone          = google_compute_instance.instance.zone
+  instance_name = google_compute_instance.instance.name
+  role          = "roles/compute.instanceAdmin"
+
+  members = [
+    "serviceAccount:${google_service_account.sa.email}",
+  ]
 }

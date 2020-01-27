@@ -1,2 +1,6 @@
 .terraform
+node_modules
+
 *.retry
+
+archive.zip
