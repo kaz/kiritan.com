@@ -2,11 +2,18 @@
   tasks:
 
     - become: yes
+      unarchive:
+        remote_src: yes
+        src: https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-245.0.0-linux-x86_64.tar.gz
+        dest: /opt
+
+    - become: yes
       pacman:
         update_cache: yes
         name:
           - nano
           - rsync
+          - python2
           - docker
           - docker-compose
 
@@ -32,17 +39,15 @@
 
     - become: yes
       copy:
-        src: files/{{ item }}
-        dest: /opt/mastodon/{{ item }}
+        src: files/{{ item.file }}
+        dest: /opt/mastodon/{{ item.file }}
+        mode: "{{ item.mode }}"
       loop:
-        - .env.production
-        - docker-compose.yaml
-        - nginx.conf
-
-    - shell: "{{ item }}"
-      args:
-        chdir: /opt/mastodon
-      loop:
-        - docker-compose run --rm web rails db:migrate
-        - docker-compose run --rm web rails assets:precompile
-        - docker-compose up -d
+        - file: .env.production
+          mode: "644"
+        - file: docker-compose.yaml
+          mode: "644"
+        - file: nginx.conf
+          mode: "644"
+        - file: run.sh
+          mode: "755"

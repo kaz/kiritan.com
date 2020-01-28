@@ -16,6 +16,34 @@ provider "google" {
   region  = local.region
 }
 
+###########################
+##### service account #####
+###########################
+
+resource "google_service_account" "sa" {
+  account_id   = local.name
+  display_name = "Mastodon service account"
+}
+
+resource "google_compute_instance_iam_binding" "instance_iam_binding" {
+  zone          = google_compute_instance.instance.zone
+  instance_name = google_compute_instance.instance.name
+  role          = "roles/compute.instanceAdmin"
+
+  members = [
+    "serviceAccount:${google_service_account.sa.email}",
+  ]
+}
+
+resource "google_pubsub_topic_iam_binding" "topic_iam_binding" {
+  topic = google_pubsub_topic.topic.name
+  role  = "roles/pubsub.publisher"
+
+  members = [
+    "serviceAccount:${google_service_account.sa.email}",
+  ]
+}
+
 #############################
 ##### mastodon instance #####
 #############################
@@ -87,6 +115,18 @@ resource "google_compute_instance" "instance" {
     preemptible       = true
     automatic_restart = false
   }
+
+  service_account {
+    email  = google_service_account.sa.email
+    scopes = ["pubsub"]
+  }
+
+  metadata = {
+    shutdown-script = <<EOS
+#!/bin/sh
+/opt/google-cloud-sdk/bin/gcloud pubsub topics publish ${google_pubsub_topic.topic.id} --message " "
+EOS
+  }
 }
 
 #######################
@@ -95,16 +135,6 @@ resource "google_compute_instance" "instance" {
 
 resource "google_pubsub_topic" "topic" {
   name = local.name
-}
-
-resource "google_cloud_scheduler_job" "job" {
-  name     = local.name
-  schedule = "* * * * *"
-
-  pubsub_target {
-    topic_name = google_pubsub_topic.topic.id
-    data       = base64encode(" ")
-  }
 }
 
 resource "google_storage_bucket" "bucket" {
@@ -121,11 +151,12 @@ resource "google_storage_bucket_object" "archive" {
 resource "google_cloudfunctions_function" "function" {
   name = local.name
 
-  runtime               = "nodejs10"
-  available_memory_mb   = 128
-  entry_point           = "run"
-  service_account_email = google_service_account.sa.email
+  runtime             = "nodejs10"
+  available_memory_mb = 128
+  entry_point         = "run"
+  timeout             = 300
 
+  service_account_email = google_service_account.sa.email
   source_archive_bucket = google_storage_bucket.bucket.name
   source_archive_object = google_storage_bucket_object.archive.name
 
@@ -138,19 +169,4 @@ resource "google_cloudfunctions_function" "function" {
     event_type = "providers/cloud.pubsub/eventTypes/topic.publish"
     resource   = google_pubsub_topic.topic.id
   }
-}
-
-resource "google_service_account" "sa" {
-  account_id   = local.name
-  display_name = "Mastodon service account"
-}
-
-resource "google_compute_instance_iam_binding" "binding" {
-  zone          = google_compute_instance.instance.zone
-  instance_name = google_compute_instance.instance.name
-  role          = "roles/compute.instanceAdmin"
-
-  members = [
-    "serviceAccount:${google_service_account.sa.email}",
-  ]
 }
