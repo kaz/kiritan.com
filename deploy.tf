@@ -16,6 +16,25 @@ provider "google" {
   region  = local.region
 }
 
+##################
+##### common #####
+##################
+
+resource "google_storage_bucket" "bucket" {
+  name     = "${local.project}-${local.name}"
+  location = local.region
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age                   = 90
+      matches_storage_class = ["COLDLINE"]
+    }
+  }
+}
+
 ###########################
 ##### service account #####
 ###########################
@@ -38,6 +57,15 @@ resource "google_compute_instance_iam_binding" "instance_iam_binding" {
 resource "google_pubsub_topic_iam_binding" "topic_iam_binding" {
   topic = google_pubsub_topic.topic.name
   role  = "roles/pubsub.publisher"
+
+  members = [
+    "serviceAccount:${google_service_account.sa.email}",
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "bucket_iam_binding" {
+  bucket = google_storage_bucket.bucket.name
+  role   = "roles/storage.objectAdmin"
 
   members = [
     "serviceAccount:${google_service_account.sa.email}",
@@ -95,6 +123,8 @@ resource "google_compute_instance" "instance" {
   machine_type = "g1-small"
   zone         = "${local.region}-b"
 
+  allow_stopping_for_update = true
+
   tags = [local.name]
 
   network_interface {
@@ -118,7 +148,7 @@ resource "google_compute_instance" "instance" {
 
   service_account {
     email  = google_service_account.sa.email
-    scopes = ["pubsub"]
+    scopes = ["pubsub", "storage-rw"]
   }
 
   metadata = {
@@ -135,11 +165,6 @@ EOS
 
 resource "google_pubsub_topic" "topic" {
   name = local.name
-}
-
-resource "google_storage_bucket" "bucket" {
-  name     = "${local.project}-${local.name}"
-  location = local.region
 }
 
 resource "google_storage_bucket_object" "archive" {

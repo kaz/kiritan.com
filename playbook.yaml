@@ -1,44 +1,52 @@
 - hosts: mastodon
+  become: yes
   tasks:
 
-    - become: yes
-      unarchive:
+    - timezone:
+        name: Asia/Tokyo
+
+    - unarchive:
         remote_src: yes
         src: https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-245.0.0-linux-x86_64.tar.gz
         dest: /opt
 
-    - become: yes
-      pacman:
+    - pacman:
         update_cache: yes
         name:
           - nano
           - rsync
           - python2
+          - cronie
           - docker
           - docker-compose
 
-    - become: yes
-      systemd:
+    - systemd:
         state: started
         enabled: yes
-        name: docker
+        name: "{{ item }}"
+      loop:
+        - cronie
+        - docker
 
-    - become: yes
-      user:
+    - cron:
+        name: backup
+        minute: "30"
+        hour: "4"
+        job: "cd /opt/mastodon && ./backup.sh"
+
+    - user:
         groups:
           - docker
         append: yes
         name: kaz
 
-    - become: yes
-      file:
+    - file:
         state: directory
         recurse: yes
         mode: 0777
         path: /opt/mastodon/public/system
 
-    - become: yes
-      copy:
+    - copy:
         src: files/{{ item.file }}
         dest: /opt/mastodon/{{ item.file }}
         mode: "{{ item.mode }}"
@@ -50,4 +58,6 @@
         - file: nginx.conf
           mode: "644"
         - file: run.sh
+          mode: "755"
+        - file: backup.sh
           mode: "755"
