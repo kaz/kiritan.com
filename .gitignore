@@ -1,6 +1,7 @@
 .terraform
-node_modules
-
-*.retry
-
 archive.zip
+
+env.mk
+*.retry
+node_modules
+group_vars/mastodon.yaml

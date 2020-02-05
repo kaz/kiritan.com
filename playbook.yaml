@@ -46,7 +46,7 @@
         mode: 0777
         path: /opt/mastodon/public/system
 
-    - copy:
+    - template:
         src: files/{{ item.file }}
         dest: /opt/mastodon/{{ item.file }}
         mode: "{{ item.mode }}"

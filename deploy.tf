@@ -1,18 +1,18 @@
+variable "project" {}
+
 locals {
-  project = "kouzoh-p-kaz"
-  region  = "asia-northeast1"
-  name    = "mastodon"
+  name   = "mastodon"
+  region = "asia-northeast1"
 }
 
 terraform {
   backend "gcs" {
-    bucket = "kouzoh-p-kaz-tfstate"
     prefix = "mastodon"
   }
 }
 
 provider "google" {
-  project = local.project
+  project = var.project
   region  = local.region
 }
 
@@ -20,8 +20,12 @@ provider "google" {
 ##### common #####
 ##################
 
+output "bucket" {
+  value = google_storage_bucket.bucket.name
+}
+
 resource "google_storage_bucket" "bucket" {
-  name     = "${local.project}-${local.name}"
+  name     = "${var.project}-${local.name}"
   location = local.region
 
   lifecycle_rule {
@@ -90,6 +94,7 @@ resource "google_compute_firewall" "firewall" {
 
   target_tags = [local.name]
 
+  # cloudflare
   source_ranges = [
     "173.245.48.0/20",
     "103.21.244.0/22",
