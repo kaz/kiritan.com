@@ -125,7 +125,7 @@ resource "google_compute_address" "ip" {
 
 resource "google_compute_instance" "instance" {
   name         = local.name
-  machine_type = "g1-small"
+  machine_type = "e2-small"
   zone         = "${local.region}-b"
 
   allow_stopping_for_update = true
@@ -141,7 +141,7 @@ resource "google_compute_instance" "instance" {
 
   boot_disk {
     initialize_params {
-      size  = 16
+      size  = 10
       image = "projects/arch-linux-gce/global/images/family/arch"
     }
   }
