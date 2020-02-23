@@ -1,20 +1,13 @@
-.PHONY: plan
-plan: .terraform archive.zip
-	terraform plan
-
-.PHONY: apply
-apply: .terraform archive.zip
-	terraform apply
+.PHONY: plan apply destroy fmt
+plan apply destroy fmt: .terraform
+	terraform $@ $(OPTS)
 
 .terraform:
 	terraform init -backend-config="bucket=$(BUCKET)"
 
-archive.zip: relaunch/index.js relaunch/package.json
-	zip -j $@ $?
-
 .PHONY: clean
 clean:
-	rm -rf .terraform archive.zip
+	rm -rf $$(cat .gitignore)
 
 ANSIBLE=ansible-playbook playbook.yaml -i hosts.sh
 

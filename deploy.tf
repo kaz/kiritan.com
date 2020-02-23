@@ -168,14 +168,22 @@ EOS
 ##### re-launcher #####
 #######################
 
+data "archive_file" "archive" {
+  type        = "zip"
+  output_path = "source.zip"
+
+  source_dir = "relaunch"
+  excludes   = ["node_modules"]
+}
+
 resource "google_pubsub_topic" "topic" {
   name = local.name
 }
 
-resource "google_storage_bucket_object" "archive" {
-  name   = "${filemd5("archive.zip")}.zip"
+resource "google_storage_bucket_object" "object" {
+  name   = "${data.archive_file.archive.output_md5}.zip"
   bucket = google_storage_bucket.bucket.name
-  source = "archive.zip"
+  source = data.archive_file.archive.output_path
 }
 
 resource "google_cloudfunctions_function" "function" {
@@ -188,7 +196,7 @@ resource "google_cloudfunctions_function" "function" {
 
   service_account_email = google_service_account.sa.email
   source_archive_bucket = google_storage_bucket.bucket.name
-  source_archive_object = google_storage_bucket_object.archive.name
+  source_archive_object = google_storage_bucket_object.object.name
 
   environment_variables = {
     ZONE = google_compute_instance.instance.zone
