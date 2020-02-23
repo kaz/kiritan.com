@@ -7,18 +7,24 @@
 
     - unarchive:
         remote_src: yes
-        src: https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-245.0.0-linux-x86_64.tar.gz
+        src: https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-281.0.0-linux-x86_64.tar.gz
         dest: /opt
 
     - pacman:
         update_cache: yes
-        name:
-          - nano
-          - rsync
-          - python2
-          - cronie
-          - docker
-          - docker-compose
+        state: latest
+        name: archlinux-keyring
+
+    - pacman:
+        name: "{{ item }}"
+      loop:
+        - cronie
+        - docker
+        - docker-compose
+        - nano
+        - python-cryptography
+        - python2
+        - rsync
 
     - systemd:
         state: started
@@ -43,8 +49,13 @@
     - file:
         state: directory
         recurse: yes
-        mode: 0777
-        path: /opt/mastodon/public/system
+        path: "{{ item.path }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - path: /opt/mastodon/tls
+          mode: "755"
+        - path: /opt/mastodon/public/system
+          mode: "777"
 
     - template:
         src: files/{{ item.file }}
@@ -61,3 +72,19 @@
           mode: "755"
         - file: backup.sh
           mode: "755"
+
+    - openssl_privatekey:
+        path: /opt/mastodon/tls/key.pem
+        type: ECC
+        curve: secp256r1
+
+    - openssl_csr:
+        path: /opt/mastodon/tls/csr.pem
+        privatekey_path: /opt/mastodon/tls/key.pem
+        common_name: kiritan.com
+
+    - openssl_certificate:
+        path: /opt/mastodon/tls/crt.pem
+        csr_path: /opt/mastodon/tls/csr.pem
+        privatekey_path: /opt/mastodon/tls/key.pem
+        provider: selfsigned

@@ -94,7 +94,8 @@ resource "google_compute_firewall" "firewall" {
 
   target_tags = [local.name]
 
-  # cloudflare
+  # Last updated: February 21, 2019
+  # https://www.cloudflare.com/ips/
   source_ranges = [
     "173.245.48.0/20",
     "103.21.244.0/22",
@@ -114,7 +115,7 @@ resource "google_compute_firewall" "firewall" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80"]
+    ports    = ["443"]
   }
 }
 
